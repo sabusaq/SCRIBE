@@ -39,25 +39,11 @@ SCRIBE runs on stock Windows PowerShell 5.1. There is no installer, no agent, an
 
 <!-- SCREENSHOT PLACEHOLDER: hero GIF — batch folder in, ranked findings report out (docs/img/hero.gif) -->
 
-## Why SCRIBE exists
-
-SCRIBE was built during a real incident involving malware that had spread across several dozen hosts.
-
-Malware analysis produced a set of IOCs and behavioral indicators. Triage collections then arrived for each affected host — tens of them, with more coming in as scoping continued. Each collection needed to be parsed, swept for the known indicators, checked against Sigma detections, and placed into a timeline showing when and how the infection had moved through the environment. Doing this by hand, host by host, did not scale to the number of endpoints or the pace at which new collections arrived.
-
-SCRIBE was written to run that entire sequence — parsing, IOC sweep, Sigma detection, timeline construction, and reporting — from one command per collection, aggregating the results across every host in the batch. The outcome of that first use was a single, chronological account of the incident: which hosts were infected, when each was first affected, how the malware moved between them, a risk score per host, the specific detections behind that score, and a pointer from each detection back to the underlying artifact data for follow-up analysis.
-
-The tool published here is the general-purpose version of what was used to produce that result.
-
-The alternative, without SCRIBE, is the sequence most DFIR analysts already use for this kind of scoping: extract each collection, parse and timeline each host individually — either through KAPE's parsing modules, which wrap Eric Zimmerman's tools, or through Plaso/`log2timeline` — then ingest each resulting timeline into an investigation platform such as Timesketch or SOF-ELK. From there, IOC sweeping, cross-host correlation, risk assessment, and the final report are done by hand, inside that platform, one host at a time.
-
-SCRIBE performs the extraction, parsing, IOC sweep, Sigma detection, and timeline construction for a host in a single step, and aggregates that output across an entire batch automatically rather than requiring the analyst to repeat the process per host and correlate the results manually. Timesketch and SOF-ELK remain well suited to open-ended, interactive exploration of a timeline; SCRIBE is intended for the scoping step that precedes or runs alongside that — turning a batch of raw collections directly into a cross-host timeline, IOC hits, detections, risk-ranked hosts, and a report, without the manual per-host handling in between.
 
 ## Scope
 
 **In scope:** offline analysis of Windows endpoint triage collections.
 
-**Out of scope, deliberately:** live collection, memory analysis, non-Windows endpoints, cloud and identity planes, and automated verdicts. A "no findings" result from SCRIBE describes Windows endpoint artifacts only, and the tool states this in its own output.
 
 ## Pipeline
 
