@@ -1,23 +1,3 @@
-# Compiled accelerator for the two measured hot loops: the IOC sweep and the timeline
-# transform. Both scan every byte of every parsed CSV (the MFT/$J/EventLogs CSVs alone can
-# be gigabytes); interpreted PowerShell tops out at a few MB/s there, while this compiled
-# path runs at disk speed. Field-measured before this existed: a single large host spent
-# 904s in the sweep and 216s in the timeline.
-#
-# Design rules:
-#   - Compiled at startup via Add-Type using the .NET runtime PowerShell already sits on.
-#     NOTHING new to install, download, or trust. C#5-only syntax so PS 5.1's compiler
-#     accepts it.
-#   - If compilation fails for ANY reason, $script:AccelOK stays $false and every caller
-#     falls back to the original pure-PowerShell implementation. Same outputs, just slower.
-#   - Semantics mirror the PS implementations exactly (same boundary rules, same message
-#     construction, same timestamp handling); parity is enforced by tests that diff the
-#     two paths on identical input.
-# Known micro-divergences from the fallback path, all confined to degenerate input:
-#   - malformed CSV rows are parsed leniently (RFC4180 best effort) instead of skipped
-#   - case-folding is ToUpperInvariant+Ordinal vs OrdinalIgnoreCase (identical for the
-#     ASCII strings indicators are made of)
-
 $script:AccelOK = $false
 
 $accelSource = @'
