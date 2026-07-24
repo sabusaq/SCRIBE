@@ -1,12 +1,3 @@
-```
-███████╗ ██████╗██████╗ ██╗██████╗ ███████╗
-██╔════╝██╔════╝██╔══██╗██║██╔══██╗██╔════╝
-███████╗██║     ██████╔╝██║██████╔╝█████╗
-╚════██║██║     ██╔══██╗██║██╔══██╗██╔══╝
-███████║╚██████╗██║  ██║██║██████╔╝███████╗
-╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═════╝ ╚══════╝
-```
-
 <h1 align="center">SCRIBE</h1>
 
 <p align="center">
@@ -19,8 +10,7 @@
   <a href="#coverage-and-verdicts">Coverage</a> ·
   <a href="#features">Features</a> ·
   <a href="#configuration">Configuration</a> ·
-  <a href="#faq">FAQ</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="#faq">FAQ</a>
 </p>
 
 <p align="center">
