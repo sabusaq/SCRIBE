@@ -1,0 +1,32 @@
+# Sample IOC list - fictional indicators for demonstration only.
+# One indicator per line. '#' starts a comment. Replace with your real IOCs.
+#
+# Indicators are typed at load. Hashes, IPs, and domains match on word boundaries
+# (high confidence); anything else is a plain substring match (low confidence).
+# Every hit records which host, which IOC, which artifact, and when.
+
+# --- hashes (all three are the EICAR test file - safe, and demonstrable by dropping an EICAR file) ---
+44d88612fea8a8f36de82e1278abb02f                                    # EICAR MD5
+3395856ce81f2b7382dee72602f798b642f14140                            # EICAR SHA1
+275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f    # EICAR SHA256
+
+# SHA1 is what the Amcache column stores - include SHA1s for metadata-only collections.
+
+# --- filenames ---
+evil.exe
+payload.dll
+dropper.vbs
+
+# --- path fragments / staging dirs ---
+\Temp\
+ProgramData\Updater
+
+# --- network (RFC 5737 / RFC 2606 documentation ranges - safe placeholders) ---
+192.0.2.10
+203.0.113.50
+malicious.example.com
+c2.example.net
+
+# --- behavioral strings (e.g. a suspicious command line) ---
+Add-MpPreference
+-ExclusionPath

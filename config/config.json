@@ -1,0 +1,21 @@
+{
+  "_comment": "Main configuration. Tool paths are auto-resolved by searching toolsPath recursively, so you normally only set toolsPath and hayabusaPath. Everything else has a sane default. Per-run overrides come from the CLI or a -ScopeConfig file (schema: config-schema.json); precedence is CLI > scope config > this file.",
+  "tools": {
+    "toolsPath": "C:/Tools/ZimmermanTools",
+    "hayabusaPath": "C:/Tools/hayabusa/hayabusa.exe",
+    "sevenZipPath": null,
+    "_note": "toolsPath is searched recursively for MFTECmd.exe, PECmd.exe, AmcacheParser.exe, AppCompatCacheParser.exe, SrumECmd.exe, RECmd.exe (+ Kroll_Batch.reb), EvtxECmd.exe, SBECmd.exe, RBCmd.exe, LECmd.exe, JLECmd.exe. sevenZipPath is only needed for BATCH mode with non-.zip archives (.7z/.tar.gz/.rar); leave null to auto-find 7z.exe on PATH or in Program Files. Native .zip needs no 7-Zip."
+  },
+  "defaults": {
+    "tier": "default"
+  },
+  "detections": {
+    "iocFolder": "detections/iocs",
+    "sigma": {
+      "allRules": true,
+      "minLevel": "informational",
+      "buildDfirTimeline": true
+    },
+    "_note": "All detection inputs are OPTIONAL and additive. An empty iocFolder is fine - Sigma (via Hayabusa) still runs. sigma.allRules enables Hayabusa's deprecated/noisy/unsupported rule sets; sigma.minLevel is the minimum rule level (informational|low|medium|high|critical); sigma.buildDfirTimeline also produces the full event timeline alongside detections."
+  }
+}

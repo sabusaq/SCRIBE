@@ -1,0 +1,109 @@
+{
+  "_comment": "Artifact catalog. Each entry maps a logical artifact to (a) path patterns relative to the drive root, (b) the parser that handles it, and (c) a tier. The engine parses tier<=selected. 'default' runs by default; add artifacts to a run with -Artifacts <name,name> or by moving them to the 'default' tier. To ADD a new artifact: copy a block, set paths + parser + tier. Parsers are defined in config/parsers.json. {user} expands to each user profile found under Users\\.",
+
+  "MFT": {
+    "tier": "default",
+    "parser": "MFTECmd_MFT",
+    "paths": ["$MFT"],
+    "purpose": "File existence, paths, $SI/$FN timestamps (incl. deleted files)."
+  },
+  "UsnJrnl": {
+    "tier": "default",
+    "parser": "MFTECmd_J",
+    "paths": ["$Extend/$UsnJrnl$J", "$Extend/$UsnJrnl_$J", "$Extend/$UsnJrnl.$J", "$Extend/$J", "$Extend/$UsnJrnl", "$J", "$UsnJrnl$J"],
+    "purpose": "File create/rename/delete journal (activity sequence)."
+  },
+  "Amcache": {
+    "tier": "default",
+    "parser": "AmcacheParser",
+    "paths": ["Windows/AppCompat/Programs/Amcache.hve", "Windows/appcompat/Programs/Amcache.hve"],
+    "purpose": "Program presence with SHA1 of the first ~31MB only. Presence, NOT execution proof; large files never hash-match."
+  },
+  "Prefetch": {
+    "tier": "default",
+    "parser": "PECmd",
+    "paths": ["Windows/Prefetch"],
+    "purpose": "Execution evidence: run counts, run times. Disabled by default on Windows Server - absence there is expected."
+  },
+  "Registry": {
+    "tier": "default",
+    "parser": "RECmd_Kroll",
+    "paths": ["Windows/System32/config"],
+    "purpose": "Run keys, services, autoruns via RECmd Kroll batch (system hives only; avoids stale Windows.old/RegBack epochs)."
+  },
+  "ScheduledTasks": {
+    "tier": "default",
+    "parser": "CopyRaw",
+    "paths": ["Windows/System32/Tasks"],
+    "purpose": "Raw scheduled-task XML (no EZ parser; copied for review)."
+  },
+  "EventLogs": {
+    "tier": "default",
+    "parser": "EvtxECmd_Dir",
+    "paths": ["Windows/System32/winevt/Logs", "Windows/System32/winevt/logs"],
+    "purpose": "Curated high-value Windows event logs."
+  },
+
+  "Shimcache": {
+    "tier": "extended",
+    "parser": "AppCompatCacheParser",
+    "paths": ["Windows/System32/config/SYSTEM"],
+    "purpose": "AppCompatCache: prior file presence/paths."
+  },
+  "SRUM": {
+    "tier": "extended",
+    "parser": "SrumECmd",
+    "paths": ["Windows/System32/sru/SRUDB.dat"],
+    "purpose": "Per-app network bytes + execution (needs SOFTWARE hive)."
+  },
+  "Shellbags": {
+    "tier": "extended",
+    "parser": "SBECmd",
+    "paths": ["Users"],
+    "purpose": "Folders browsed (incl. removable volumes)."
+  },
+  "RecycleBin": {
+    "tier": "extended",
+    "parser": "RBCmd",
+    "paths": ["$Recycle.Bin"],
+    "purpose": "Deleted-file records."
+  },
+
+  "LNK": {
+    "tier": "full",
+    "parser": "LECmd",
+    "paths": ["Users"],
+    "purpose": "Shortcut files: target volume serial/type (USB source)."
+  },
+  "JumpLists": {
+    "tier": "full",
+    "parser": "JLECmd",
+    "paths": ["Users"],
+    "purpose": "Recent-item jump lists."
+  },
+  "NTUSER": {
+    "tier": "full",
+    "parser": "RECmd_Kroll",
+    "paths": ["Users/{user}/NTUSER.DAT"],
+    "purpose": "Per-user registry (RunMRU, TypedPaths, MountPoints2, UserAssist)."
+  },
+
+  "LogFile": {
+    "tier": "optional",
+    "parser": "MFTECmd_Boot",
+    "paths": ["$LogFile"],
+    "purpose": "NTFS transaction log (note: limited EZ support; copied/parsed best-effort)."
+  },
+  "Secure": {
+    "tier": "optional",
+    "parser": "CopyRaw",
+    "paths": ["$Secure_$SDS", "$Secure:$SDS"],
+    "purpose": "$Secure security descriptors (copied for manual/other-tool review)."
+  },
+  "Boot": {
+    "tier": "optional",
+    "parser": "MFTECmd_Boot",
+    "paths": ["$Boot"],
+    "purpose": "$Boot volume metadata."
+  }
+}

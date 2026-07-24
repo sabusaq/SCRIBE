@@ -1,0 +1,18 @@
+{
+  "_comment": "Parser definitions. Each artifact in artifacts.json names a parser here. 'tool' is a key into config.json tools{}. 'type' tells the engine how to build the command: 'file' (parse a single file, {in}=resolved path), 'dir' (parse a directory), 'copy' (robocopy raw files, no tool). {out} = per-artifact output folder the engine creates. {csvName} = a fixed output filename. Placeholders {software},{system} resolve to those hive paths when present. To change a tool's flags, edit 'args' here - no code change.",
+
+  "MFTECmd_MFT":        { "tool": "MFTECmd", "type": "file", "args": ["-f", "{in}", "--csv", "{out}", "--csvf", "MFT.csv"] },
+  "MFTECmd_J":          { "tool": "MFTECmd", "type": "file", "args": ["-f", "{in}", "--csv", "{out}", "--csvf", "UsnJrnl.csv"] },
+  "MFTECmd_Boot":       { "tool": "MFTECmd", "type": "file", "args": ["-f", "{in}", "--csv", "{out}"] },
+  "PECmd":              { "tool": "PECmd", "type": "dir", "args": ["-d", "{in}", "--csv", "{out}", "--csvf", "Prefetch.csv"] },
+  "AmcacheParser":      { "tool": "AmcacheParser", "type": "file", "args": ["-f", "{in}", "--csv", "{out}", "-i"] },
+  "AppCompatCacheParser": { "tool": "AppCompatCacheParser", "type": "file", "args": ["-f", "{in}", "--csv", "{out}", "--csvf", "Shimcache.csv"] },
+  "SrumECmd":           { "tool": "SrumECmd", "type": "file", "args": ["-f", "{in}", "-r", "{software}", "--csv", "{out}"] },
+  "RECmd_Kroll":        { "tool": "RECmd", "type": "dir", "args": ["--bn", "{krollBatch}", "-d", "{in}", "--nl", "true", "--csv", "{out}", "--csvf", "Registry.csv"] },
+  "EvtxECmd_Dir":       { "tool": "EvtxECmd", "type": "dir", "args": ["-d", "{in}", "--csv", "{out}", "--csvf", "EventLogs.csv"] },
+  "SBECmd":             { "tool": "SBECmd", "type": "dir", "args": ["-d", "{in}", "--csv", "{out}"] },
+  "RBCmd":              { "tool": "RBCmd", "type": "dir", "args": ["-d", "{in}", "--csv", "{out}", "--csvf", "RecycleBin.csv"] },
+  "LECmd":              { "tool": "LECmd", "type": "dir", "args": ["-d", "{in}", "-q", "--csv", "{out}", "--csvf", "LNK.csv"] },
+  "JLECmd":             { "tool": "JLECmd", "type": "dir", "args": ["-d", "{in}", "-q", "--csv", "{out}"] },
+  "CopyRaw":            { "tool": null, "type": "copy" }
+}

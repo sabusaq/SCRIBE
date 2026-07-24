@@ -1,0 +1,51 @@
+{
+  "_comment": "Collection-format layouts. -Layout is OPTIONAL; if omitted the engine uses 'Auto', which unions every known drive-root pattern plus the discovery fallback and works for most collections. Name a specific layout only to FORCE a structure or when Auto can't resolve an encoded path (e.g. some Velociraptor collections). Add a new layout by copying a block. Paths use forward or backslashes interchangeably.",
+
+  "Auto": {
+    "description": "Default. Tries all known drive-root locations (top-level drive folders, Velociraptor uploads paths, and the folder itself) + discovery. Announces how it resolved.",
+    "anchor": "$MFT",
+    "driveRoots": [".", "C", "D", "E", "C%3A", "D%3A", "uploads/auto/C:", "uploads/ntfs/C:", "uploads/mft/C:"],
+    "systemRoot": "Windows",
+    "notes": "Transparent auto-resolution: prints the drive root it matched and how. Fails loudly if nothing resolves."
+  },
+
+  "Aralez": {
+    "description": "Kaspersky GERT Aralez triage. Raw NTFS metadata + collected dirs under a drive-letter folder (usually C).",
+    "anchor": "C/$MFT",
+    "driveRoots": ["C", "D", "E"],
+    "systemRoot": "C/Windows",
+    "notes": "Metadata-heavy: often no binaries collected."
+  },
+
+  "KAPE": {
+    "description": "Kroll Artifact Parser and Extractor (--tdest) triage. Files under <host>/<Drive>/... e.g. C%3A/ or C/.",
+    "anchor": "C/$MFT",
+    "driveRoots": ["C", "D", "C%3A", "D%3A"],
+    "systemRoot": "C/Windows",
+    "notes": "KAPE may prefix a machine-name folder; point -HostArtifacts at that machine folder. Drive folders sometimes URL-encoded (C%3A)."
+  },
+
+  "CyLR": {
+    "description": "CyLR collection. Artifacts under a per-host folder, drive as 'C'.",
+    "anchor": "C/$MFT",
+    "driveRoots": ["C"],
+    "systemRoot": "C/Windows",
+    "notes": "CyLR zips per host; unzip first and point at the host folder."
+  },
+
+  "Velociraptor": {
+    "description": "Velociraptor triage/collector output. Files under uploads/<accessor>/<Drive>/... (e.g. uploads/ntfs/%5C%5C.%5CC%3A/ or uploads/auto/C:/).",
+    "anchor": "uploads",
+    "driveRoots": ["uploads/auto/C:", "uploads/ntfs/C:", "uploads/mft/C:", "C"],
+    "systemRoot": "uploads/auto/C:/Windows",
+    "notes": "Velociraptor path encoding varies by artifact. If resolution misses, use -Layout Raw and pass the exact drive folder, or extend driveRoots here."
+  },
+
+  "Raw": {
+    "description": "A raw or mounted C: volume, Windows.old, or any folder that IS the drive root (contains Windows\\, Users\\, $MFT).",
+    "anchor": "$MFT",
+    "driveRoots": [".", "C", "Windows.old"],
+    "systemRoot": "Windows",
+    "notes": "Use this for mounted images, VSS copies, Windows.old, or when auto layouts miss. Point -HostArtifacts directly at the drive root."
+  }
+}

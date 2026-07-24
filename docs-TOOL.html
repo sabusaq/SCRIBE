@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SCRIBE - Tool Description</title>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; margin: 2.2cm auto; max-width: 950px; color: #1a1a1a; line-height: 1.5; padding: 0 20px; }
+  h1 { font-size: 22pt; border-bottom: 2px solid #333; padding-bottom: 6px; }
+  h2 { font-size: 15pt; margin-top: 30px; border-bottom: 1px solid #bbb; padding-bottom: 3px; }
+  h3 { font-size: 12pt; margin-top: 20px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 10pt; }
+  th, td { border: 1px solid #ccc; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: #efefef; }
+  code, pre { font-family: Consolas, monospace; background: #f4f4f4; }
+  code { padding: 1px 4px; border-radius: 3px; font-size: 10pt; }
+  pre { padding: 10px 14px; border: 1px solid #ddd; overflow-x: auto; font-size: 9.5pt; line-height: 1.35; }
+  .small { font-size: 9pt; color: #555; }
+  .toc { background: #f7f7f7; border: 1px solid #ddd; padding: 12px 20px; }
+  .toc a { text-decoration: none; }
+</style>
+</head>
+<body>
+
+<h1>SCRIBE</h1>
+<p><b>S</b>weep, <b>C</b>orrelate &amp; <b>R</b>eport on <b>I</b>OCs, <b>B</b>atches, and
+<b>E</b>vidence.</p>
+<p>Point this at a Windows forensic collection — KAPE, CyLR, Velociraptor, Aralez, or a
+raw/mounted drive — or a folder of many of them, and it runs the full triage pipeline: parse the
+standard artifacts, sweep your IOCs, detect with Sigma via Hayabusa, build a cross-artifact
+timeline, and write a findings report. Every artifact is accounted for in a named state, so you
+always know the difference between "nothing found" and "couldn't check."</p>
+<p>PowerShell 5.1, no installation. Wraps Eric Zimmerman's tools and Hayabusa — SCRIBE is the
+layer that parses, correlates, scores, and reports on top of them.</p>
+
+<div class="toc">
+<b>Contents</b><br>
+<a href="#what">1. What it does</a><br>
+<a href="#modes">2. Modes of operation</a><br>
+<a href="#pipeline">3. The pipeline</a><br>
+<a href="#layouts">4. Collection layouts</a><br>
+<a href="#artifacts">5. Artifacts &amp; tiers</a><br>
+<a href="#detection">6. Detection: IOCs and Sigma</a><br>
+<a href="#coverage">7. Coverage model</a><br>
+<a href="#timeline">8. Timelines &amp; time window</a><br>
+<a href="#reports">9. Reports</a><br>
+<a href="#outputs">10. Output reference</a><br>
+<a href="#params">11. Parameter reference</a><br>
+<a href="#structure">12. Repository structure</a><br>
+<a href="#requirements">13. Requirements</a>
+</div>
+
+<h2 id="what">1. What it does</h2>
+<p>Triage collectors (KAPE, CyLR, Velociraptor, Aralez) pull forensic artifacts off live Windows
+machines. SCRIBE is what you run <i>after</i> collection — it is not another collector, and not
+just a parser wrapper. For each collection it parses, detects, correlates, and reports, end to
+end:</p>
+<table>
+<tr><th>Step</th><th>Action</th></tr>
+<tr><td>Resolve</td><td>Finds the drive root inside the collection and validates it.</td></tr>
+<tr><td>Parse</td><td>Runs the right parser for each artifact in scope (MFT, Amcache, Prefetch, registry, event logs, ...).</td></tr>
+<tr><td>Detect</td><td>Sweeps your IOC list across every parsed CSV; runs Sigma rules over the event logs via Hayabusa.</td></tr>
+<tr><td>Correlate</td><td>Optionally builds a Timesketch-format super-timeline across all artifacts.</td></tr>
+<tr><td>Report</td><td>Writes a coverage report and, optionally, a findings report per host and per batch.</td></tr>
+</table>
+<p>Three design rules run through everything:</p>
+<ul>
+<li><b>Coverage honesty.</b> Every artifact ends in a known state. A "no hits" result on a thin
+collection is reported as inconclusive, never as clean.</li>
+<li><b>Config over code.</b> Layouts, artifacts, parsers, and defaults live in JSON under
+<code>config/</code>. Supporting a new artifact or collector layout is a config edit.</li>
+<li><b>Evidence stays intact.</b> Parsed CSVs are never modified or filtered in place. Derived
+views (timelines, filtered copies) are separate files.</li>
+</ul>
+
+<h2 id="modes">2. Modes of operation</h2>
+<h3>Single host</h3>
+<pre>.\Invoke-Triage.ps1 -HostArtifacts D:\case\HOST01 -ToolsPath C:\Tools\ZimmermanTools -IocFile .\iocs.txt</pre>
+<p>Analyzes one already-extracted collection.</p>
+<h3>Batch</h3>
+<pre>.\Invoke-Triage.ps1 -BatchFolder D:\evidence -ToolsPath C:\Tools\ZimmermanTools `
+  -Hayabusa C:\Tools\hayabusa\hayabusa.exe -IocFile .\iocs.txt -OutputPath D:\out</pre>
+<p>Analyzes a folder of collections - archives (<code>.zip .7z .tar.gz .rar</code>),
+already-extracted folders, or a mix. Archives are extracted, analyzed, and the extracted copy
+deleted (<code>-KeepExtracted</code> retains it). Extracted folders are analyzed in place and never
+deleted. A corrupt collection is marked FAILED and the batch continues. Before starting, a disk
+capacity check estimates peak usage and hard-stops if the output drive is too small
+(<code>-Force</code> overrides).</p>
+<p>Batch results are aggregated: a global IOC timeline (which host, which indicator, when), a
+host-by-indicator matrix, a per-host coverage table, and optionally a batch findings report.</p>
+
+<h2 id="pipeline">3. The pipeline</h2>
+<p>Per host, in order:</p>
+<table>
+<tr><th>#</th><th>Stage</th><th>Module</th><th>Output</th></tr>
+<tr><td>1</td><td>Layout resolution</td><td><code>Resolve-Layout.ps1</code></td><td>drive root + hive paths</td></tr>
+<tr><td>2</td><td>Artifact resolution</td><td><code>Resolve-Layout.ps1</code></td><td>path per artifact (configured location first, filename discovery as fallback)</td></tr>
+<tr><td>3</td><td>Parsing</td><td><code>Invoke-Parsing.ps1</code></td><td>per-artifact CSVs + coverage states</td></tr>
+<tr><td>4</td><td>Sigma / DFIR timeline</td><td><code>Invoke-Hayabusa.ps1</code></td><td><code>Hayabusa_Detections.csv</code>, <code>Hayabusa_DFIR_Timeline.csv</code></td></tr>
+<tr><td>5</td><td>IOC sweep</td><td><code>Invoke-Detections.ps1</code></td><td><code>IOC_Hits.csv</code> with match times</td></tr>
+<tr><td>6</td><td>Coverage report</td><td><code>Get-Coverage.ps1</code></td><td><code>Artifact_Coverage.csv</code>, <code>_Summary.txt</code>, result</td></tr>
+<tr><td>7</td><td>Super-timeline (optional)</td><td><code>Build-Timeline.ps1</code></td><td><code>Timeline_Timesketch.csv</code></td></tr>
+<tr><td>8</td><td>Findings report (optional)</td><td><code>New-Report.ps1</code></td><td><code>Findings_Report.html</code></td></tr>
+<tr><td>9</td><td>Filtered copies (optional)</td><td><code>Build-Timeline.ps1</code></td><td><code>*_filtered.csv</code> per artifact</td></tr>
+</table>
+<p>Every external tool call is timed, logged to <code>_logs\&lt;tool&gt;.log</code> including the
+exact command line, and is non-fatal: one failed parser never aborts a host, one failed host never
+aborts a batch.</p>
+
+<h2 id="layouts">4. Collection layouts</h2>
+<p><code>-Layout</code> defaults to <code>Auto</code>, which tries every known drive-root pattern
+(top-level <code>C\</code>/<code>D\</code>, URL-encoded <code>C%3A</code>, Velociraptor
+<code>uploads\...</code> paths, and the folder itself) and announces how it resolved. Named
+layouts force a specific structure:</p>
+<table>
+<tr><th>Layout</th><th>Collector</th><th>Drive root location</th></tr>
+<tr><td><code>Auto</code></td><td>(default)</td><td>resolved automatically, printed on screen</td></tr>
+<tr><td><code>Aralez</code></td><td>Kaspersky GERT</td><td><code>&lt;collection&gt;\C\</code></td></tr>
+<tr><td><code>KAPE</code></td><td>Kroll KAPE</td><td><code>&lt;machine&gt;\C\</code> or <code>C%3A\</code></td></tr>
+<tr><td><code>CyLR</code></td><td>CyLR</td><td><code>&lt;host&gt;\C\</code></td></tr>
+<tr><td><code>Velociraptor</code></td><td>Velociraptor</td><td><code>uploads\...\C:\</code></td></tr>
+<tr><td><code>Raw</code></td><td>mounted image / Windows.old</td><td>the folder itself</td></tr>
+</table>
+<p>If the chosen layout's anchor (<code>$MFT</code> / <code>Windows\System32</code>) is not found,
+the run stops with the list of paths it tried. Layout definitions are in
+<code>config\layouts.json</code>; adding a collector is one JSON block. See
+<code>docs-LAYOUTS.md</code> for folder diagrams.</p>
+
+<h2 id="artifacts">5. Artifacts &amp; tiers</h2>
+<p>The artifact catalog is <code>config\artifacts.json</code>: each entry maps a logical name to
+path patterns, a parser (from <code>config\parsers.json</code>), and a tier. The run parses
+everything at or below the selected tier.</p>
+<table>
+<tr><th>Tier</th><th>Artifacts</th></tr>
+<tr><td><code>default</code></td><td>$MFT, $J (UsnJrnl), Amcache, Prefetch, Registry (RECmd + Kroll batch), Scheduled Tasks, Event Logs</td></tr>
+<tr><td><code>extended</code></td><td>+ Shimcache, SRUM, Shellbags, Recycle Bin</td></tr>
+<tr><td><code>full</code></td><td>+ LNK, Jump Lists, NTUSER</td></tr>
+<tr><td>optional</td><td>$LogFile, $Secure, $Boot - added explicitly via a scope config</td></tr>
+</table>
+<p>Artifact paths are tried at their configured locations first; if not found, a filename-based
+discovery search runs (skipping VSS / Windows.old / RegBack copies), and any discovered path is
+flagged on screen. <code>-NoDiscover</code> disables the fallback.</p>
+
+<h2 id="detection">6. Detection: IOCs and Sigma</h2>
+<h3>IOC sweep</h3>
+<p><code>-IocFile</code> takes one or more files or a folder. One indicator per line,
+<code>#</code> comments. Hashes (MD5/SHA1/SHA256), filenames, IPs, domains, paths, or any string
+(e.g. a command-line fragment). Indicators are typed at load: hashes, IPs, and domains match
+on word boundaries and are reported as high confidence; everything else is a case-insensitive
+substring match reported as low confidence. The sweep covers every parsed CSV - an Amcache SHA1
+column, an MFT path, an event payload - and each hit records the host, the indicator, the
+artifact, the line, and a timestamp taken from the artifact's known time column, tagged with
+its semantic. A row carrying several indicators produces one hit per indicator.</p>
+<p>Short or partial-hex indicators (not 32/40/64 chars) are flagged at load time because they
+collide with Windows GUIDs and device IDs. On metadata-only collections, SHA1 indicators are the
+ones that produce hash-level confirmation (Amcache stores SHA1).</p>
+<p>An empty IOC set is a valid run - Sigma still provides detection.</p>
+<h3>Sigma via Hayabusa</h3>
+<p>When <code>-Hayabusa</code> points at the exe, the event logs are scanned with Hayabusa's
+bundled Sigma rule set (all rules enabled), producing:</p>
+<ul>
+<li><code>Hayabusa_Detections.csv</code> - only rule matches. "Is anything bad?" Sort by level.</li>
+<li><code>Hayabusa_DFIR_Timeline.csv</code> - a chronological event timeline. "What happened, in order?"</li>
+</ul>
+<p>Custom Sigma rules go into Hayabusa's <code>rules\</code> folder, or run standalone with
+<code>hayabusa.exe csv-timeline -r &lt;your rules&gt;</code>.</p>
+
+<h2 id="coverage">7. Coverage model</h2>
+<p>Every artifact in scope ends in exactly one state:</p>
+<table>
+<tr><th>State</th><th>Meaning</th></tr>
+<tr><td><code>Parsed</code></td><td>Tool ran, exited 0, and produced non-empty output.</td></tr>
+<tr><td><code>NotInCollection</code></td><td>The artifact was not in the package. Blind spot.</td></tr>
+<tr><td><code>ToolMissing</code></td><td>No parser found under <code>-ToolsPath</code>. Blind spot.</td></tr>
+<tr><td><code>NoOutput</code></td><td>Tool ran but wrote nothing (some tools exit 0 on failure). Blind spot.</td></tr>
+<tr><td><code>ParseFailed</code></td><td>Tool errored or the path was invalid. Blind spot.</td></tr>
+<tr><td><code>SkippedByConfig</code></td><td>Deliberately skipped by the scope config. Declared blind spot.</td></tr>
+</table>
+<p>If none of the core artifacts (MFT / Amcache / UsnJrnl / EventLogs) parsed, the run result is
+INCONCLUSIVE regardless of IOC results. The default posture is neutral: the engine reports
+matches and coverage; it does not declare a host infected.</p>
+
+<h2 id="timeline">8. Timelines &amp; time window</h2>
+<p><code>-Timeline case</code> writes one <code>Timeline_Timesketch.csv</code> per host;
+<code>-Timeline global</code> writes one <code>_GLOBAL_Timeline_Timesketch.csv</code> across a
+batch with a <code>host</code> column. Format is Timesketch-native
+(<code>message, datetime, timestamp_desc, data_type, host</code>) and loads directly into
+Timesketch or Timeline Explorer. Sources: MFT ($SI/$FN timestamps), $J, Amcache, Prefetch,
+Registry key writes, and event logs.</p>
+<p><code>-TimelineStart</code> / <code>-TimelineEnd</code> (ISO 8601) bound the window. A full-MFT
+unbounded timeline is millions of rows; bound it. With <code>-FilteredCopies</code>, the engine
+also writes <code>*_filtered.csv</code> beside each artifact CSV containing only the rows in the
+window - the full CSVs are never modified, and filtered copies are excluded from the IOC sweep so
+hits are not double-counted.</p>
+
+<h2 id="reports">9. Reports</h2>
+<p><code>-Report</code> produces fully automatic, ready-to-read HTML (open in Word to save as
+.docx; print to PDF):</p>
+<ul>
+<li><b>Per host</b> - <code>Findings_Report.html</code>: auto-written executive summary (states
+IOC match count, distinct indicators, artifact sources, earliest/latest matched activity,
+critical/high Sigma count - or "inconclusive" when core artifacts are missing), coverage table,
+IOC match table, top 5 critical/high detections, and blind spots.</li>
+<li><b>Per batch</b> - <code>_GLOBAL_Findings_Report.html</code>: findings per host (hit rows
+highlighted), earliest observed IOC-matched artifact time per host (mixed timestamp semantics; not proof of infection order), and which
+indicators appeared on how many hosts.</li>
+</ul>
+<p>Templates are plain HTML/CSS under <code>templates\</code> - restyle once (letterhead, colors)
+and every report inherits it.</p>
+
+<h2 id="outputs">10. Output reference</h2>
+<table>
+<tr><th>File</th><th>Scope</th><th>Content</th></tr>
+<tr><td><code>_Summary.txt</code></td><td>host</td><td>result + coverage counts at a glance</td></tr>
+<tr><td><code>IOC_Hits.csv</code></td><td>host</td><td>every IOC match: time, indicator, artifact, line</td></tr>
+<tr><td><code>Artifact_Coverage.csv</code></td><td>host</td><td>state per artifact</td></tr>
+<tr><td><code>&lt;Artifact&gt;\*.csv</code></td><td>host</td><td>raw parser output (never filtered)</td></tr>
+<tr><td><code>&lt;Artifact&gt;\*_filtered.csv</code></td><td>host</td><td>window-bounded copy (only when a window is set)</td></tr>
+<tr><td><code>EventLogs\Hayabusa_Detections.csv</code></td><td>host</td><td>Sigma rule matches</td></tr>
+<tr><td><code>EventLogs\Hayabusa_DFIR_Timeline.csv</code></td><td>host</td><td>chronological event timeline</td></tr>
+<tr><td><code>Timeline_Timesketch.csv</code></td><td>host</td><td>merged super-timeline (with <code>-Timeline case</code>)</td></tr>
+<tr><td><code>Findings_Report.html</code></td><td>host</td><td>readable findings report (with <code>-Report</code>)</td></tr>
+<tr><td><code>_logs\*.log</code></td><td>host</td><td>per-tool output + exact command line</td></tr>
+<tr><td><code>_GLOBAL_IOC_Timeline.csv</code></td><td>batch</td><td>all IOC hits, all hosts, time-sorted</td></tr>
+<tr><td><code>_GLOBAL_IOC_Matrix.csv</code></td><td>batch</td><td>host x indicator: first/last seen, count</td></tr>
+<tr><td><code>_GLOBAL_Coverage.csv</code></td><td>batch</td><td>per-host result + coverage (+FAILED rows)</td></tr>
+<tr><td><code>_GLOBAL_Timeline_Timesketch.csv</code></td><td>batch</td><td>merged timeline across hosts (with <code>-Timeline global</code>)</td></tr>
+<tr><td><code>_GLOBAL_Findings_Report.html</code></td><td>batch</td><td>batch findings summary (with <code>-Report</code>)</td></tr>
+<tr><td><code>_BATCH_Summary.txt</code></td><td>batch</td><td>plain-text batch summary</td></tr>
+</table>
+
+<h2 id="params">11. Parameter reference</h2>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>-HostArtifacts &lt;path&gt;</code></td><td>Single-host mode: one collection folder.</td></tr>
+<tr><td><code>-BatchFolder &lt;path&gt;</code></td><td>Batch mode: folder of archives and/or extracted collections.</td></tr>
+<tr><td><code>-Layout &lt;name&gt;</code></td><td><code>Auto</code> (default) | Aralez | KAPE | CyLR | Velociraptor | Raw.</td></tr>
+<tr><td><code>-ToolsPath &lt;path&gt;</code></td><td>Eric Zimmerman tools folder, searched recursively.</td></tr>
+<tr><td><code>-Hayabusa &lt;exe&gt;</code></td><td>Hayabusa executable. Enables Sigma + DFIR timeline.</td></tr>
+<tr><td><code>-IocFile &lt;path...&gt;</code></td><td>IOC file(s) or folder. Optional.</td></tr>
+<tr><td><code>-Tier &lt;name&gt;</code></td><td><code>default</code> | extended | full.</td></tr>
+<tr><td><code>-OutputPath &lt;path&gt;</code></td><td>Results folder. Default <code>&lt;input&gt;\_Analysis</code>.</td></tr>
+<tr><td><code>-ScopeConfig &lt;json&gt;</code></td><td>Scope config: tier, artifacts, IOC files, time focus (schema: <code>config\config-schema.json</code>).</td></tr>
+<tr><td><code>-Timeline &lt;mode&gt;</code></td><td><code>case</code> | <code>global</code>. Builds the Timesketch super-timeline.</td></tr>
+<tr><td><code>-TimelineStart/-TimelineEnd</code></td><td>ISO 8601 UTC window for the timeline.</td></tr>
+<tr><td><code>-FilteredCopies</code></td><td>With a window: also write <code>*_filtered.csv</code> per artifact.</td></tr>
+<tr><td><code>-Visibility</code></td><td>Write <code>Visibility_Windows.csv</code>: per-artifact time horizons.</td></tr>
+<tr><td><code>-Manifest</code> / <code>-NoInputHash</code></td><td>Write <code>run-manifest.json</code> (input/IOC/tool hashes, parameters); skip input hashing.</td></tr>
+<tr><td><code>-ArchivePassword &lt;pw&gt;</code></td><td>Batch: password for protected archives.</td></tr>
+<tr><td><code>-KeepOnHit</code></td><td>Batch: keep a host's extracted files when it matched IOCs.</td></tr>
+<tr><td><code>-MaxParallelHosts &lt;n&gt;</code></td><td>Batch: analyze up to N collections in parallel child processes (default 1).</td></tr>
+<tr><td><code>-Rerun</code></td><td>Batch: re-analyze hosts complete from a prior identical run.</td></tr>
+<tr><td><code>-HostName &lt;label&gt;</code></td><td>Single host: label used in outputs.</td></tr>
+<tr><td><code>-Report</code></td><td>Per-host findings report + batch summary report.</td></tr>
+<tr><td><code>-KeepExtracted</code></td><td>Batch: keep extracted archives.</td></tr>
+<tr><td><code>-SevenZipPath &lt;exe&gt;</code></td><td>7z.exe for non-.zip archives. Auto-found if omitted.</td></tr>
+<tr><td><code>-SkipHayabusa</code></td><td>Skip Sigma + DFIR timeline.</td></tr>
+<tr><td><code>-NoDiscover</code></td><td>Disable artifact discovery fallback.</td></tr>
+<tr><td><code>-Force</code></td><td>Override the batch disk-capacity hard stop.</td></tr>
+<tr><td><code>-Help</code></td><td>Usage page (also shown when run with no arguments).</td></tr>
+</table>
+
+<h2 id="structure">12. Repository structure</h2>
+<pre>
+Invoke-Triage.ps1        entry point (help, validation, dispatch, single-host pipeline)
+modules\
+  Common.ps1             logging, tool resolution, safe native-exe runner
+  Resolve-Layout.ps1     drive-root resolution + artifact path resolution/discovery
+  Expand-Collection.ps1  archive extraction, collection-root detection
+  Invoke-Parsing.ps1     config-driven parsing + coverage states
+  Invoke-Hayabusa.ps1    Sigma detections + DFIR timeline
+  Invoke-Detections.ps1  IOC load + sweep
+  Build-Timeline.ps1     Timesketch super-timeline + windowed artifact copies
+  Get-Coverage.ps1       coverage report + result
+  Test-Capacity.ps1      batch disk pre-flight
+  New-Report.ps1         per-host + batch findings reports
+  Invoke-Batch.ps1       batch orchestration + global aggregation
+config\
+  config.json            tool paths, defaults
+  layouts.json           collection layouts
+  artifacts.json         artifact catalog (name, paths, parser, tier)
+  parsers.json           parser command templates
+  config-schema.json     scope-config contract
+detections\iocs\         your IOC lists
+templates\               report templates (HTML)
+examples\                sample IOC list + commands
+</pre>
+
+<h2 id="requirements">13. Requirements</h2>
+<ul>
+<li>Windows PowerShell 5.1+</li>
+<li><a href="https://ericzimmerman.github.io/">Eric Zimmerman's tools</a>: MFTECmd, AmcacheParser,
+PECmd, EvtxECmd, RECmd + Kroll_Batch.reb (core); AppCompatCacheParser, SrumECmd, SBECmd, RBCmd,
+LECmd, JLECmd (extended/full tiers)</li>
+<li><a href="https://github.com/Yamato-Security/hayabusa">Hayabusa</a> (optional - Sigma + DFIR timeline)</li>
+<li>7-Zip (optional - batch mode with non-.zip archives)</li>
+</ul>
+<p>A pre-flight check reports which tools were found; missing tools mark their artifacts as blind
+spots rather than failing the run.</p>
+
+<hr>
+<p class="small">MIT license. Third-party tools are not bundled and carry their own licenses.</p>
+
+</body>
+</html>
