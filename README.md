@@ -410,16 +410,6 @@ It is present on every supported Windows system by default, including restricted
 **How long does a run take?**
 Runtime is determined mainly by collection size and the underlying parsers. `-MaxParallelHosts` and the optional compiled accelerator affect throughput on large batches.
 
-## Roadmap
-
-Current status is tracked in [milestones](../../milestones).
-
-- **v1.x** — published Pester test suite in CI, signed releases, sample dataset, additional collector layouts, structured run log.
-- **v2.x** — additional artifacts via configuration, STIX 2.1 / OpenIOC / MISP indicator ingestion, filterable HTML reports, diff mode between two runs of the same host.
-- **v3.x** — direct Timesketch push, SIEM-oriented output profiles, community detection-pack format.
-
-Live collection, memory analysis, non-Windows endpoints, cloud and identity planes, and automated verdicts remain out of scope; dedicated tools exist for each.
-
 ## Contributing
 
 Contributions are welcome, particularly configuration-only ones:
@@ -428,8 +418,6 @@ Contributions are welcome, particularly configuration-only ones:
 - **New artifacts and parsers** (`config/artifacts.json`, `config/parsers.json`).
 - **Bug reports** with `_logs\` output attached, scrubbed of case data.
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) first; it covers the UTC contract, output-schema stability rules, and testing. See also [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
-
 ## Acknowledgments
 
 SCRIBE depends on the following projects:
@@ -437,7 +425,6 @@ SCRIBE depends on the following projects:
 - **[Eric Zimmerman](https://ericzimmerman.github.io/)** — the parsers (MFTECmd, AmcacheParser, PECmd, EvtxECmd, RECmd, and others).
 - **[Yamato Security — Hayabusa](https://github.com/Yamato-Security/hayabusa)** — Sigma detection and the DFIR event timeline.
 - **[SigmaHQ](https://github.com/SigmaHQ/sigma)** — the detection rules.
-- **[Timesketch](https://timesketch.org/)** — the timeline format SCRIBE targets.
 - The authors of **KAPE, Velociraptor, CyLR, and Aralez** — the collectors SCRIBE consumes.
 
 None of these projects endorse SCRIBE.
@@ -445,12 +432,5 @@ None of these projects endorse SCRIBE.
 ## License
 
 [MIT](LICENSE). No warranty. See the file for the full text.
-
-## Support
-
-- **Bugs** → [open a bug report](../../issues/new?template=bug_report.yml), attaching `_logs\` output scrubbed of case data
-- **Feature requests** → [open a feature request](../../issues/new?template=feature_request.yml)
-- **Questions and usage help** → [GitHub Discussions](../../discussions)
-- **Security issues** → do not open an issue; see [SECURITY.md](SECURITY.md)
 
 This is a community project maintained in spare time. Issues with clear reproduction steps and logs are addressed first.
