@@ -39,8 +39,10 @@ SCRIBE runs on stock Windows PowerShell 5.1. There is no installer, no agent, an
 
 <!-- SCREENSHOT PLACEHOLDER: hero GIF — batch folder in, ranked findings report out (docs/img/hero.gif) -->
 
-<img width="1898" height="1006" alt="image" src="https://github.com/user-attachments/assets/bf804864-735e-4bfb-b0bd-5601c0dc0d95" />
+![SCRIBE graphical launcher showing evidence, tools, scope, output and batch options, with the generated command line previewed at the bottom](https://github.com/user-attachments/assets/bf804864-735e-4bfb-b0bd-5601c0dc0d95)
 
+*The launcher builds and displays the exact command it will run — the GUI and CLI
+are one engine.*
 
 ## Scope
 
