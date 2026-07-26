@@ -115,7 +115,7 @@ Binaries are not committed to this repository. Parsers, EvtxECmd maps, and Sigma
 
 ## Installation
 
-1. Download the latest release zip from [Releases](../../releases) and verify its SHA-256 against the value in the release notes.
+1. Download the zip.
 2. Unblock it before extracting — Windows marks downloaded files, and PowerShell will otherwise refuse to run them:
    ```powershell
    Unblock-File -Path .\scribe-*.zip
