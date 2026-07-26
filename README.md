@@ -39,6 +39,8 @@ SCRIBE runs on stock Windows PowerShell 5.1. There is no installer, no agent, an
 
 <!-- SCREENSHOT PLACEHOLDER: hero GIF — batch folder in, ranked findings report out (docs/img/hero.gif) -->
 
+<img width="1898" height="1006" alt="image" src="https://github.com/user-attachments/assets/bf804864-735e-4bfb-b0bd-5601c0dc0d95" />
+
 
 ## Scope
 
